@@ -67,11 +67,13 @@ jobs:
           if git status --porcelain | grep -q .; then
             git add ${{ github.event.client_payload.path || github.event.inputs.path || 'clash_rule/video_china.list' }}
             git commit -m "feat: 添加内容到config.yaml - '${{  github.event.client_payload.text || github.event.inputs.text }}'"
-            git push https://${{ secrets.PAT_TOKEN }}@github.com/pscchiang/config.git
+           
+            # 核心修复：重新设置远程仓库地址，携带PAT
+            git remote set-url origin https://${{ secrets.PAT_TOKEN }}@github.com/pscchiang/config.git
+            # 强制推送（仅建议测试时用，生产环境慎用，优先确认无冲突）
+            git push origin main
+            
             echo "修改已成功推送"
           else
             echo "无修改需要推送"
           fi
-        env:
-          # 使用GitHub内置的token进行推送（默认有写权限）
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
