@@ -67,7 +67,7 @@ jobs:
           if git status --porcelain | grep -q .; then
             git add ${{ github.event.client_payload.path || github.event.inputs.path || 'clash_rule/video_china.list' }}
             git commit -m "feat: 添加内容到config.yaml - '${{  github.event.client_payload.text || github.event.inputs.text }}'"
-            git push
+            git push https://${{ secrets.PAT_TOKEN }}@github.com/pscchiang/config.git
             echo "修改已成功推送"
           else
             echo "无修改需要推送"
