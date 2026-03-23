@@ -1,4 +1,6 @@
-[
+{
+  "settings": {
+    "sources": [
         {
             "id": "feifan",
             "name": "非凡资源",
@@ -1043,4 +1045,9 @@
             "enabled": true,
             "priority": 116
         }
-    ]
+    ],
+    "sortBy": "default",
+    "searchHistory": true,
+    "watchHistory": true
+  }
+}
