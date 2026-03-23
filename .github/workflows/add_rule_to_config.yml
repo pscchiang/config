@@ -74,4 +74,4 @@ jobs:
           fi
         env:
           # 使用GitHub内置的token进行推送（默认有写权限）
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
