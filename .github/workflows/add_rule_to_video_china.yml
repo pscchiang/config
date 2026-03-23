@@ -1,0 +1,81 @@
+# This is a basic workflow to help you get started with Actions
+
+name: add_rule_to_video_china
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      text:
+        description: '要添加到config.yaml的内容（必填）'
+        required: true
+        type: string
+      path:
+        description: '文件路径（默认根目录）'
+        required: false
+        type: string
+        default: 'clash_rule/video_china.list'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  add-line:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 检出仓库代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 确保能推送到仓库（需要写权限）
+          fetch-depth: 0
+
+      # 2. 检查文件是否存在，不存在则创建
+      - name: 检查/创建config.yaml
+        run: |
+          FILE_PATH="${{ github.event.inputs.file_path }}"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "# 自动创建的config.yaml文件" > "$FILE_PATH"
+            echo "文件不存在，已创建: $FILE_PATH"
+          fi
+
+      # 3. 向config.yaml末尾添加指定内容
+      - name: 添加内容到文件
+        run: |
+          # 获取输入参数
+          LINE_CONTENT="${{ github.event.inputs.line_content }}"
+          FILE_PATH="${{ github.event.inputs.file_path }}"
+          
+          # 向文件末尾追加内容（避免重复添加相同行）
+          if ! grep -qxF "$LINE_CONTENT" "$FILE_PATH"; then
+            echo "$LINE_CONTENT" >> "$FILE_PATH"
+            echo "已添加内容: $LINE_CONTENT"
+          else
+            echo "内容已存在，无需重复添加: $LINE_CONTENT"
+            exit 0 # 内容已存在时正常退出，不报错
+          fi
+
+      # 4. 提交并推送修改
+      - name: 提交并推送修改
+        run: |
+          # 配置git用户信息（必须，否则无法提交）
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          # 检查是否有修改
+          if git status --porcelain | grep -q .; then
+            git add ${{ github.event.inputs.file_path }}
+            git commit -m "feat: 添加内容到config.yaml - '${{ github.event.inputs.line_content }}'"
+            git push
+            echo "修改已成功推送"
+          else
+            echo "无修改需要推送"
+          fi
+        env:
+          # 使用GitHub内置的token进行推送（默认有写权限）
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
