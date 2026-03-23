@@ -8,15 +8,15 @@
 # DOMAIN-SUFFIX,bing.com
 
 
-  - DOMAIN-SUFFIX,movie.douban.com
-  - DOMAIN-SUFFIX,mddcloud.com.cn
-  - DOMAIN-SUFFIX,ddys.tv
-  - DOMAIN-SUFFIX,agefans.app
-  - DOMAIN-SUFFIX,aliyundrive.asia
-  - DOMAIN-KEYWORD,cczy88
-  - DOMAIN-KEYWORD,cczy
-  - DOMAIN-SUFFIX,up8r6jjh.com
-  - DOMAIN-KEYWORD,cczy77
-  - DOMAIN-KEYWORD,jisuts.com
-  - DOMAIN-KEYWORD,ymuuy.com
-  - IP-CIDR,155.94.130.0/24
+DOMAIN-SUFFIX,movie.douban.com
+DOMAIN-SUFFIX,mddcloud.com.cn
+DOMAIN-SUFFIX,ddys.tv
+DOMAIN-SUFFIX,agefans.app
+DOMAIN-SUFFIX,aliyundrive.asia
+DOMAIN-KEYWORD,cczy88
+DOMAIN-KEYWORD,cczy
+DOMAIN-SUFFIX,up8r6jjh.com
+DOMAIN-KEYWORD,cczy77
+DOMAIN-KEYWORD,jisuts.com
+DOMAIN-KEYWORD,ymuuy.com
+IP-CIDR,155.94.130.0/24
