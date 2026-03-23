@@ -60,8 +60,8 @@ jobs:
       - name: 提交并推送修改
         run: |
           # 配置git用户信息（必须，否则无法提交）
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "pscchiang"
+          git config --global user.email "brandon1587@gmail.com"
           
           # 检查是否有修改
           if git status --porcelain | grep -q .; then
