@@ -1,81 +1,96 @@
-# This is a basic workflow to help you get started with Actions
-
 name: add_line_to_config
 
-# Controls when the workflow will run
 on:
-  # Allows you to run this workflow manually from the Actions tab
   repository_dispatch:
-    types: [add_line_to_config] # 自定义事件类型，用于区分不同请求
+    types: [add_line_to_config]
   workflow_dispatch:
     inputs:
+      method:
+        description: '选择规则类型'
+        required: true
+        type: choice
+        options:
+          - DOMAIN-SUFFIX
+          - DOMAIN-KEYWORD
+          - DOMAIN
+          - IP-CIDR
+        default: 'DOMAIN-SUFFIX'
+        
       text:
-        description: '要添加到config.yaml的内容（必填）'
+        description: '填写域名/IP（例如 ddys.tv）'
         required: true
         type: string
+        
       path:
-        description: '文件路径（默认根目录）'
-        required: false
-        type: string
+        description: '选择文件路径'
+        required: true
+        type: choice
+        options:
+          - clash_rule/video_china.list
+          - clash_rule/proxy.list
         default: 'clash_rule/video_china.list'
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   add-line:
     runs-on: ubuntu-latest
     steps:
-      # 1. 检出仓库代码
       - name: 检出代码
         uses: actions/checkout@v4
         with:
-          # 确保能推送到仓库（需要写权限）
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
-      # 2. 检查文件是否存在，不存在则创建
-      - name: 检查/创建config.yaml
+      - name: 检查文件是否存在
         run: |
-          FILE_PATH="${{ github.event.client_payload.path || github.event.inputs.path || '' }}"
+          FILE_PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
           if [ ! -f "$FILE_PATH" ]; then
-            echo "❌ 错误：文件不存在！请确认路径：$FILE_PATH"
+            echo "❌ 错误：文件不存在！路径：$FILE_PATH"
             exit 1
           fi
-          echo "✅ 文件存在，继续执行"
-          
-      # 3. 向config.yaml末尾添加指定内容
-      - name: 添加内容到文件
+          echo "✅ 文件校验通过"
+
+      - name: 组合内容并写入文件
         run: |
-          # 获取输入参数
+          # 获取参数
+          METHOD="${{ github.event.client_payload.method || github.event.inputs.method }}"
           TEXT="${{ github.event.client_payload.text || github.event.inputs.text }}"
           PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
-          
-          # 向文件末尾追加内容（避免重复添加相同行）
-          if ! grep -qxF "$TEXT" "$PATH"; then
-            echo "" >> "$PATH"
-            echo "$TEXT" >> "$PATH"
-            echo "已添加内容: $TEXT:"
-          else
-            echo "内容已存在，无需重复添加: $TEXT"
-            exit 0 # 内容已存在时正常退出，不报错
+
+          # 检查是否为空
+          if [ -z "$TEXT" ]; then
+            echo "❌ 错误：内容不能为空"
+            exit 1
           fi
 
-      # 4. 提交并推送修改
-      - name: 提交并推送修改
+          if [ -z "$METHOD" ]; then
+            echo "❌ 错误：类型不能为空"
+            exit 1
+          fi
+
+          # 组合成格式：DOMAIN-SUFFIX,ddys.tv
+          LINE="${METHOD},${TEXT}"
+          
+          # 去重判断：文件中已存在则退出，不存在则添加
+          if grep -qxF "$LINE" "$PATH"; then
+            echo "ℹ️ 内容已存在，跳过添加：$LINE"
+            exit 0
+          else
+            echo "$LINE" >> "$PATH"
+            echo "✅ 已添加新规则：$LINE"
+          fi
+
+      - name: 提交并推送
         run: |
-          # 配置git用户信息（必须，否则无法提交）
           git config --global user.name "pscchiang"
           git config --global user.email "brandon1587@gmail.com"
           
-          # 检查是否有修改
           if git status --porcelain | grep -q .; then
-            git add ${{ github.event.client_payload.path || github.event.inputs.path }}
-            git commit -m "feat: 添加内容到config.yaml - '${{  github.event.client_payload.text || github.event.inputs.text }}'"
-           
-            # 核心修复：重新设置远程仓库地址，携带PAT
-            git remote set-url origin https://${{ secrets.PAT_TOKEN }}@github.com/pscchiang/config.git
-            # 强制推送（仅建议测试时用，生产环境慎用，优先确认无冲突）
-            git push origin main
-            
-            echo "修改已成功推送"
+            git add .
+            git commit -m "feat: 添加规则 - $LINE"
+            git push
+            echo "✅ 推送成功"
           else
-            echo "无修改需要推送"
+            echo "ℹ️ 无修改"
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
