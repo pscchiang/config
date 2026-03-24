@@ -77,7 +77,7 @@ jobs:
           # 去重判断：文件中已存在则退出，不存在则添加
           if /usr/bin/grep -qxF "$LINE" "$PATH"; then
             echo "ℹ️ 内容已存在，跳过添加：$LINE"
-            exit 0
+            exit 1
           else
             echo "$LINE" >> "$PATH"
             echo "✅ 已添加新规则：$LINE"
