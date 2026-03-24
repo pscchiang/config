@@ -1,5 +1,9 @@
 name: add_line_to_config
 
+# 修复 Node.js 20 弃用警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   repository_dispatch:
     types: [add_line_to_config]
@@ -40,6 +44,10 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
+      # 安装grep
+      - name: Install grep
+        run: sudo apt-get update && sudo apt-get install -y grep
+
       - name: 检查文件是否存在
         run: |
           FILE_PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
@@ -55,7 +63,8 @@ jobs:
           METHOD="${{ github.event.client_payload.method || github.event.inputs.method }}"
           TEXT="${{ github.event.client_payload.text || github.event.inputs.text }}"
           PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
-
+          LINE="${METHOD},${TEXT}"   # 组合成格式：DOMAIN-SUFFIX,ddys.tv
+          
           # 检查是否为空
           if [ -z "$TEXT" ]; then
             echo "❌ 错误：内容不能为空"
@@ -66,9 +75,6 @@ jobs:
             echo "❌ 错误：类型不能为空"
             exit 1
           fi
-
-          # 组合成格式：DOMAIN-SUFFIX,ddys.tv
-          LINE="${METHOD},${TEXT}"
           
           # 去重判断：文件中已存在则退出，不存在则添加
           if grep -qxF "$LINE" "$PATH"; then
