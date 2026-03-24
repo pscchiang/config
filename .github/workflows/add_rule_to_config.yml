@@ -44,10 +44,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
-      # 安装grep
-      - name: Install grep
-        run: sudo apt-get update -y && sudo apt-get install -y grep
-        shell: bash
+
 
       - name: 检查文件是否存在
         run: |
