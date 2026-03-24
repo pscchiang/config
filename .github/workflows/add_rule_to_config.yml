@@ -46,7 +46,8 @@ jobs:
 
       # 安装grep
       - name: Install grep
-        run: sudo apt-get update && sudo apt-get install -y grep
+        run: sudo apt-get update -y && sudo apt-get install -y grep
+        shell: bash
 
       - name: 检查文件是否存在
         run: |
@@ -77,7 +78,7 @@ jobs:
           fi
           
           # 去重判断：文件中已存在则退出，不存在则添加
-          if grep -qxF "$LINE" "$PATH"; then
+          if /usr/bin/grep -qxF "$LINE" "$PATH"; then
             echo "ℹ️ 内容已存在，跳过添加：$LINE"
             exit 0
           else
