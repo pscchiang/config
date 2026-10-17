@@ -1,12 +1,13 @@
 name: add_line_to_config
 
-# 修复 Node.js 20 弃用警告
+# JavaScript Actions 使用 Node.js 24
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   repository_dispatch:
     types: [add_line_to_config]
+
   workflow_dispatch:
     inputs:
       method:
@@ -19,12 +20,12 @@ on:
           - DOMAIN
           - IP-CIDR
         default: 'DOMAIN-SUFFIX'
-        
+
       text:
         description: '填写域名/IP（例如 ddys.tv）'
         required: true
         type: string
-        
+
       path:
         description: '选择文件路径'
         required: true
@@ -36,65 +37,121 @@ on:
 
 jobs:
   add-line:
-    runs-on: ubuntu-latest
+    # 固定 Ubuntu 版本，避免 ubuntu-latest 自动迁移
+    runs-on: ubuntu-24.04
+
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
-
-
-      - name: 检查文件是否存在
+      - name: 获取参数并检查文件
+        id: params
+        env:
+          INPUT_METHOD: ${{ github.event.client_payload.method || github.event.inputs.method }}
+          INPUT_TEXT: ${{ github.event.client_payload.text || github.event.inputs.text }}
+          INPUT_PATH: ${{ github.event.client_payload.path || github.event.inputs.path }}
         run: |
-          FILE_PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
-          if [ ! -f "$FILE_PATH" ]; then
-            echo "❌ 错误：文件不存在！路径：$FILE_PATH"
-            exit 1
-          fi
-          echo "✅ 文件校验通过"
+          set -e
 
-      - name: 组合内容并写入文件
-        run: |
-          # 获取参数
-          METHOD="${{ github.event.client_payload.method || github.event.inputs.method }}"
-          TEXT="${{ github.event.client_payload.text || github.event.inputs.text }}"
-          PATH="${{ github.event.client_payload.path || github.event.inputs.path }}"
-          LINE="${METHOD},${TEXT}"   # 组合成格式：DOMAIN-SUFFIX,ddys.tv
-          
-          # 检查是否为空
+          METHOD="$INPUT_METHOD"
+          TEXT="$INPUT_TEXT"
+          RULE_FILE="$INPUT_PATH"
+
+          # 检查规则类型
+          case "$METHOD" in
+            DOMAIN-SUFFIX|DOMAIN-KEYWORD|DOMAIN|IP-CIDR)
+              ;;
+            *)
+              echo "❌ 错误：不支持的规则类型"
+              exit 1
+              ;;
+          esac
+
+          # 检查文件路径，防止写入其他文件
+          case "$RULE_FILE" in
+            clash_rule/video_china.list|clash_rule/proxy.list)
+              ;;
+            *)
+              echo "❌ 错误：不允许的文件路径"
+              exit 1
+              ;;
+          esac
+
+          # 检查内容
           if [ -z "$TEXT" ]; then
             echo "❌ 错误：内容不能为空"
             exit 1
           fi
 
-          if [ -z "$METHOD" ]; then
-            echo "❌ 错误：类型不能为空"
+          if [[ "$TEXT" == *$'\n'* || "$TEXT" == *$'\r'* || "$TEXT" == *','* ]]; then
+            echo "❌ 错误：内容不能包含换行符或逗号"
             exit 1
-          fi
-          
-          # 去重判断：文件中已存在则退出，不存在则添加
-          if /usr/bin/grep -qxF "$LINE" "$PATH"; then
-            echo "ℹ️ 内容已存在，跳过添加：$LINE"
-            exit 1
-          else
-            echo "$LINE" >> "$PATH"
-            echo "✅ 已添加新规则：$LINE"
           fi
 
-      - name: 提交并推送
-        run: |
-          git config --global user.name "pscchiang"
-          git config --global user.email "brandon1587@gmail.com"
-          
-          if git status --porcelain | grep -q .; then
-            git add .
-            git commit -m "feat: 添加规则 - $LINE"
-            git push
-            echo "✅ 推送成功"
-          else
-            echo "ℹ️ 无修改"
+          # 检查文件是否存在
+          if [ ! -f "$RULE_FILE" ]; then
+            echo "❌ 错误：文件不存在：$RULE_FILE"
+            exit 1
           fi
+
+          echo "method=$METHOD" >> "$GITHUB_OUTPUT"
+          echo "text=$TEXT" >> "$GITHUB_OUTPUT"
+          echo "path=$RULE_FILE" >> "$GITHUB_OUTPUT"
+
+          echo "✅ 参数与文件校验通过"
+
+      - name: 组合内容并写入文件
+        id: add_rule
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          METHOD: ${{ steps.params.outputs.method }}
+          TEXT: ${{ steps.params.outputs.text }}
+          RULE_FILE: ${{ steps.params.outputs.path }}
+        run: |
+          set -e
+
+          LINE="${METHOD},${TEXT}"
+
+          # 将规则输出给后续步骤
+          {
+            echo "line<<EOF"
+            echo "$LINE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          # 已存在则跳过，不让工作流失败
+          if grep -qxF -- "$LINE" "$RULE_FILE"; then
+            echo "ℹ️ 内容已存在，跳过添加：$LINE"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "$LINE" >> "$RULE_FILE"
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "✅ 已添加新规则：$LINE"
+
+      - name: 提交并推送
+        if: steps.add_rule.outputs.changed == 'true'
+        env:
+          RULE_FILE: ${{ steps.params.outputs.path }}
+          LINE: ${{ steps.add_rule.outputs.line }}
+        run: |
+          set -e
+
+          git config user.name "pscchiang"
+          git config user.email "brandon1587@gmail.com"
+
+          git add -- "$RULE_FILE"
+
+          if git diff --cached --quiet; then
+            echo "ℹ️ 无修改"
+            exit 0
+          fi
+
+          git commit -m "feat: 添加规则 - $LINE"
+          git push
+
+          echo "✅ 推送成功"
